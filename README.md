@@ -28,18 +28,17 @@ This repo just glues them together so both UIs share one port, one auth token, a
 
 [![Duplicate this Space](https://huggingface.co/datasets/huggingface/badges/resolve/main/duplicate-this-space-xl.svg)](https://huggingface.co/spaces/f4b404/hermes?duplicate=true) → **Duplicate this Space**. Name it whatever you want, pick CPU basic free hardware, keep spcae public. HF copies all files automatically.
 
-If you'd rather start from this repo, create a new Space with **SDK = Docker** at [huggingface.co/new-space](https://huggingface.co/new-space) and upload everything in this repo to its `main` branch.
+If you'd rather start from this repo, (for power users) create a new Space with **SDK = Docker** at [huggingface.co/new-space](https://huggingface.co/new-space) and upload everything in this repo to its `main` branch.
 
 ### 2. Add secrets (Settings → Variables and secrets)
 
 **Required** (the Space will not start without these):
 
-| Secret | What it is | Example |
+| Secret | What it is | How to get it |
 | --- | --- | --- |
-| `GATEWAY_TOKEN` | Your password — gates the WebUI login and the `/v1/*` API. Pick anything strong. | A 32-char random string (`openssl rand -base64 32`) |
+| `GATEWAY_TOKEN` | Your password — gates the WebUI login and the `/v1/*` API. Pick anything strong. | Anything u want to keep as a password for your chat and dashboard |
 | `HF_TOKEN` | Persists your sessions, profiles, skills, cron jobs, memory, and workspace files across Space restarts by syncing to a private HF Dataset every 10 min. **Without this, restarts wipe everything.** | [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens) → New token → **Write** scope |
-| `CLOUDFLARE_WORKERS_TOKEN` | Auto-provisions two Cloudflare Workers: one as an outbound proxy (needed for Telegram, sometimes for blocked LLM providers) and one as a cron keep-alive worker that pings `/health` every 10 min so the Space doesn't sleep on free tier |
-
+| `CLOUDFLARE_WORKERS_TOKEN` | Auto-provisions two Cloudflare Workers: one as an outbound proxy (needed for Telegram, sometimes for blocked LLM providers) and one as a cron keep-alive worker that pings `/health` every 10 min so the Space doesn't sleep on free tier | Go to https://dash.cloudflare.com/profile/api-tokens → Create new token → Edit Cloudflare Workers (Use this template)|
 **Optional advanced features**:
 
 | Secret | What it does |
