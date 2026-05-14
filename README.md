@@ -26,7 +26,7 @@ This repo just glues them together so both UIs share one port, one auth token, a
 
 ### 1. Duplicate the Space
 
-[![Duplicate this Space](https://huggingface.co/datasets/huggingface/badges/resolve/main/duplicate-this-space-xl.svg)](https://huggingface.co/spaces/f4b404/hermes?duplicate=true) → **Duplicate this Space**. Name it whatever you want, pick CPU basic free hardware, keep spcae public. HF copies all files automatically.
+[![Duplicate this Space](https://huggingface.co/datasets/huggingface/badges/resolve/main/duplicate-this-space-xl.svg)](https://huggingface.co/spaces/f4b404/hermes?duplicate=true) Click on this → Name it whatever you want, pick CPU basic free hardware, keep space public. HF copies all files automatically.
 
 If you'd rather start from this repo, (for power users) create a new Space with **SDK = Docker** at [huggingface.co/new-space](https://huggingface.co/new-space) and upload everything in this repo to its `main` branch.
 
