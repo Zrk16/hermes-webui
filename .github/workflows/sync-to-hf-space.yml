@@ -1,0 +1,55 @@
+name: Sync to Hugging Face Space
+
+# Mirrors every push to main onto huggingface.co/spaces/f4b404/hermes
+# so the Space rebuilds automatically. Free-tier HF Spaces don't expose
+# the native "linked GitHub repository" feature, so we mirror by force-
+# pushing the GitHub `main` branch to the Space's `main` branch.
+#
+# Required secret: HF_TOKEN — write-scope HF token from
+# https://huggingface.co/settings/tokens
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    concurrency:
+      group: hf-mirror
+      cancel-in-progress: false  # never abandon a half-pushed mirror
+    steps:
+      - name: Checkout (full history so HF gets a useful commit graph)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Identify as the GitHub Actions mirror
+        run: |
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name  "github-actions[bot]"
+
+      - name: Add the HF Space as a git remote
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          if [ -z "$HF_TOKEN" ]; then
+            echo "::error::HF_TOKEN secret is not set on this repo. Add it under Settings → Secrets and variables → Actions."
+            exit 1
+          fi
+          # The mirror is force-push because GitHub history may rebase,
+          # squash-merge, or include changes the Space repo doesn't have.
+          # If you ever edit files via the HF web UI, those edits will be
+          # overwritten on the next mirror — treat GitHub as the source of truth.
+          git remote add space "https://F4bC0d3:${HF_TOKEN}@huggingface.co/spaces/f4b404/hermes"
+
+      - name: Push main branch to the HF Space
+        run: |
+          git push --force space "$(git rev-parse HEAD):refs/heads/main"
+
+      - name: Report
+        if: always()
+        run: |
+          echo "Mirrored $(git rev-parse --short HEAD) → https://huggingface.co/spaces/f4b404/hermes"
+          echo "The Space will start rebuilding within a few seconds."
