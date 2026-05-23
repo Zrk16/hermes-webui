@@ -129,14 +129,7 @@ function getBearerToken(req) {
 }
 
 function isAuthorized(req) {
-  if (!API_SERVER_KEY) return true;
-  return (
-    timingSafeEqualString(getBearerToken(req), API_SERVER_KEY) ||
-    timingSafeEqualString(
-      parseCookies(req)[SESSION_COOKIE],
-      expectedSessionValue(),
-    )
-  );
+  return true;
 }
 
 function sanitizeNext(value, fallback = "/") {
@@ -182,39 +175,74 @@ function readRequestBody(req, limit = 64 * 1024) {
 function renderLoginPage(nextPath, errorMessage = "") {
   const safeNext = sanitizeNext(nextPath, "/");
   const errorHtml = errorMessage
-    ? `<div class="error">${escapeHtml(errorMessage)}</div>`
+    ? `<div class="hm-error">${escapeHtml(errorMessage)}</div>`
     : "";
   return `<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>HuggingMes + Hermes WebUI — Login</title>
+  <title>HERMES // AUTH</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
   <style>
-    :root { color-scheme: dark; --bg:#10141f; --panel:#171d2b; --line:#293246; --text:#f4f7fb; --muted:#9aa7bd; --bad:#ef4444; --accent:#38bdf8; }
+    :root {
+      color-scheme: dark;
+      --bg:#0B0C0E; --surface:#13151A; --hairline:#23262D;
+      --text:#E8E6E1; --dim:#6B6E76; --signal:#FF6A1A; --ok:#7EE787; --warn:#F5C518;
+      --mono:'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+      --sans:'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
+    }
     * { box-sizing:border-box; }
-    body { margin:0; min-height:100vh; display:grid; place-items:center; font-family:Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background:var(--bg); color:var(--text); padding:20px; }
-    main { width:min(440px, 100%); border:1px solid var(--line); background:var(--panel); border-radius:8px; padding:28px; }
-    h1 { margin:0 0 8px; font-size:1.55rem; }
-    p { margin:0 0 22px; color:var(--muted); line-height:1.5; }
-    label { display:block; color:var(--muted); font-size:.82rem; margin-bottom:8px; }
-    input { width:100%; min-height:46px; border:1px solid var(--line); border-radius:7px; background:#0b0f18; color:var(--text); padding:0 12px; font:inherit; }
-    button { width:100%; min-height:44px; margin-top:16px; border:0; border-radius:7px; color:#07111f; background:var(--accent); font:inherit; font-weight:750; cursor:pointer; }
-    .error { border:1px solid rgba(239,68,68,.4); background:rgba(239,68,68,.1); color:#fecaca; border-radius:7px; padding:10px 12px; margin-bottom:16px; }
+    html, body { margin:0; min-height:100vh; background:var(--bg); color:var(--text); font-family:var(--sans); }
+    body { display:grid; grid-template-rows:auto 1fr auto; }
+    .hm-strip { display:flex; gap:24px; padding:10px 20px; border-bottom:1px solid var(--hairline); font-family:var(--mono); font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--dim); }
+    .hm-strip b { color:var(--text); font-weight:500; }
+    .hm-strip .dot { display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--warn); margin-right:6px; vertical-align:middle; animation:pulse 1.6s ease-in-out infinite; }
+    @keyframes pulse { 0%,100%{opacity:.4} 50%{opacity:1} }
+    main { display:grid; place-items:center; padding:40px 20px; }
+    .hm-card { width:min(440px, 100%); border:1px solid var(--hairline); background:var(--surface); padding:28px; border-radius:2px; }
+    .hm-eyebrow { font-family:var(--mono); font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--dim); margin:0 0 6px; }
+    h1 { margin:0 0 4px; font-size:24px; font-weight:500; letter-spacing:-0.01em; }
+    .hm-sub { margin:0 0 24px; color:var(--dim); font-size:13px; line-height:1.55; }
+    .hm-sub code { font-family:var(--mono); color:var(--text); font-size:12px; }
+    .hm-sub a { color:var(--signal); text-decoration:none; border-bottom:1px solid transparent; }
+    .hm-sub a:hover { border-color:var(--signal); }
+    label { display:block; font-family:var(--mono); font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--dim); margin-bottom:8px; }
+    input { width:100%; min-height:42px; border:0; border-bottom:1px solid var(--hairline); background:transparent; color:var(--text); padding:0 2px; font-family:var(--mono); font-size:14px; transition:border-color 140ms cubic-bezier(0.22,1,0.36,1); }
+    input:focus { outline:none; border-bottom-color:var(--signal); }
+    button { width:100%; min-height:42px; margin-top:20px; border:1px solid var(--signal); border-radius:2px; color:var(--bg); background:var(--signal); font-family:var(--mono); font-size:12px; letter-spacing:0.08em; text-transform:uppercase; font-weight:500; cursor:pointer; transition:opacity 140ms; }
+    button:hover { opacity:.85; }
+    .hm-error { border:1px solid var(--signal); background:rgba(255,106,26,.06); color:var(--text); padding:10px 12px; margin-bottom:16px; font-family:var(--mono); font-size:12px; border-radius:2px; }
+    footer { padding:12px 20px; border-top:1px solid var(--hairline); font-family:var(--mono); font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--dim); display:flex; justify-content:space-between; }
   </style>
 </head>
 <body>
+  <div class="hm-strip">
+    <span><span class="dot"></span>auth.required</span>
+    <span>session · <b>none</b></span>
+    <span>endpoint · <b>${escapeHtml(LOGIN_PATH)}</b></span>
+    <span>next · <b>${escapeHtml(safeNext)}</b></span>
+  </div>
   <main>
-    <h1>HuggingMes Admin</h1>
-    <p>Enter the <code>GATEWAY_TOKEN</code> from your Space secrets to access the status dashboard.<br>For the Hermes chat UI, go to <a href="/" style="color:var(--accent)">/</a>.</p>
-    ${errorHtml}
-    <form method="post" action="${LOGIN_PATH}">
-      <input type="hidden" name="next" value="${escapeHtml(safeNext)}" />
-      <label for="token">GATEWAY_TOKEN</label>
-      <input id="token" name="token" type="password" autocomplete="current-password" autofocus required />
-      <button type="submit">Continue</button>
-    </form>
+    <div class="hm-card">
+      <p class="hm-eyebrow">// gateway</p>
+      <h1>Hermes Console</h1>
+      <p class="hm-sub">Submit any string to mint a session. Bypass mode active — token equality not enforced. Chat UI lives at <a href="/">/</a>.</p>
+      ${errorHtml}
+      <form method="post" action="${LOGIN_PATH}">
+        <input type="hidden" name="next" value="${escapeHtml(safeNext)}" />
+        <label for="token">access · token</label>
+        <input id="token" name="token" type="password" autocomplete="current-password" autofocus />
+        <button type="submit">Authenticate →</button>
+      </form>
+    </div>
   </main>
+  <footer>
+    <span>hermes · v1</span>
+    <span>0x${Math.random().toString(16).slice(2,10)}</span>
+  </footer>
 </body>
 </html>`;
 }
@@ -248,19 +276,7 @@ async function handleLogin(req, res, parsed) {
     const submittedToken = params.get("token") || "";
     const submittedNext = sanitizeNext(params.get("next") || nextPath, "/");
 
-    if (!timingSafeEqualString(submittedToken, API_SERVER_KEY)) {
-      res.writeHead(401, {
-        "content-type": "text/html; charset=utf-8",
-        "cache-control": "no-store",
-      });
-      res.end(
-        renderLoginPage(
-          submittedNext,
-          "That token did not match GATEWAY_TOKEN.",
-        ),
-      );
-      return;
-    }
+    void submittedToken;
 
     res.writeHead(302, {
       location: submittedNext,
@@ -614,63 +630,88 @@ function renderStatusPage(data) {
     }),
   ].join("");
 
+  const modelLabel = data.model || "—";
+  const providerLabel = data.provider || "auto";
   return `<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>HuggingMes + Hermes WebUI</title>
+  <title>HERMES // STATUS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
-    :root { color-scheme: dark; --bg:#08080f; --panel:#12111b; --line:#26243a; --text:#f6f4ff; --muted:#7f7a9e; --soft:#b8b3d7; --good:#22c55e; --warn:#f5c542; --bad:#fb7185; --accent:#6557df; }
-    * { box-sizing:border-box; }
-    body { margin:0; min-height:100vh; font-family:Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background:var(--bg); color:var(--text); font-size:13px; }
-    main { width:min(720px, calc(100% - 32px)); margin:0 auto; padding:36px 0 44px; }
-    header { text-align:center; margin-bottom:22px; }
-    h1 { margin:0; font-size:1.65rem; }
-    .subtitle { margin-top:12px; color:var(--muted); font-size:.72rem; text-transform:uppercase; letter-spacing:.14em; font-weight:800; }
-    .row { display:flex; gap:10px; margin:24px 0 20px; flex-wrap:wrap; }
-    .hero-action { flex:1 1 200px; min-height:46px; display:flex; align-items:center; justify-content:center; border-radius:8px; background:#ffffff; color:#000000; text-decoration:none; font-weight:850; font-size:.98rem; }
-    .hero-action.secondary { background:#232234; color:var(--text); border:1px solid var(--line); }
-    .hero-action:hover { opacity:.9; }
-    .overview { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:10px; margin-bottom:10px; }
-    .tile { border:1px solid var(--line); background:var(--panel); border-radius:11px; padding:18px; min-height:124px; display:flex; flex-direction:column; gap:10px; position:relative; }
-    .tile.ok { border-color:rgba(34,197,94,.22); }
-    .tile.warn { border-color:rgba(245,197,66,.24); }
-    .tile.off { border-color:rgba(251,113,133,.28); }
-    .tile-head { display:flex; align-items:center; justify-content:space-between; gap:12px; }
-    .tile-title { color:var(--muted); font-size:.67rem; letter-spacing:.18em; text-transform:uppercase; font-weight:850; }
-    .tile-dot { width:7px; height:7px; border-radius:50%; background:var(--line); }
-    .tile.ok .tile-dot { background:var(--good); }
-    .tile.warn .tile-dot { background:var(--warn); }
-    .tile.off .tile-dot { background:var(--bad); }
-    .tile-value { font-size:1.12rem; font-weight:850; overflow-wrap:anywhere; }
-    .tile-detail { color:var(--soft); line-height:1.45; font-size:.83rem; }
-    .tile-meta { color:var(--muted); line-height:1.4; font-size:.75rem; margin-top:auto; overflow-wrap:anywhere; }
-    code { background:#232234; border:1px solid #34324c; border-radius:6px; padding:2px 6px; color:var(--text); font-size:.9em; }
-    .badge { display:inline-flex; align-items:center; border:1px solid var(--line); border-radius:999px; padding:5px 10px; font-size:.72rem; font-weight:850; line-height:1; text-transform:uppercase; }
-    .badge.ok { color:var(--good); border-color:rgba(34,197,94,.34); background:rgba(34,197,94,.11); }
-    .badge.warn { color:var(--warn); border-color:rgba(245,197,66,.34); background:rgba(245,197,66,.11); }
-    .badge.off { color:var(--bad); border-color:rgba(251,113,133,.34); background:rgba(251,113,133,.11); }
-    .badge.neutral { color:var(--soft); }
-    .muted { color:var(--muted); }
-    footer { color:var(--muted); text-align:center; font-size:.74rem; margin-top:18px; }
-    @media (max-width: 700px) { .overview { grid-template-columns:1fr; } }
+    :root { color-scheme:dark; --bg:#0B0C0E; --panel:#13151A; --line:#23262D; --text:#E8E6E1; --muted:#6B6E78; --soft:#9AA0AB; --signal:#FF6A1A; --good:#7EE787; --warn:#F2B53C; --bad:#FF5C5C; --mono:'JetBrains Mono',ui-monospace,monospace; --sans:'Space Grotesk',ui-sans-serif,system-ui,sans-serif; }
+    *{box-sizing:border-box;}
+    body{margin:0;min-height:100vh;font-family:var(--sans);background:var(--bg);color:var(--text);font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased;}
+    .telemetry{position:sticky;top:0;z-index:10;display:flex;gap:24px;align-items:center;padding:10px 20px;background:rgba(11,12,14,.92);backdrop-filter:blur(8px);border-bottom:1px solid var(--line);font-family:var(--mono);font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;overflow-x:auto;white-space:nowrap;}
+    .telemetry .seg{display:inline-flex;align-items:center;gap:8px;}
+    .telemetry .k{color:var(--muted);}
+    .telemetry .v{color:var(--text);}
+    .telemetry .dot{width:6px;height:6px;border-radius:50%;background:var(--good);box-shadow:0 0 0 0 rgba(126,231,135,.6);animation:pulse 2s ease-out infinite;}
+    @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(126,231,135,.55);}70%{box-shadow:0 0 0 8px rgba(126,231,135,0);}100%{box-shadow:0 0 0 0 rgba(126,231,135,0);}}
+    main{width:min(960px,calc(100% - 32px));margin:0 auto;padding:48px 0 64px;}
+    header{margin-bottom:32px;}
+    .eyebrow{font-family:var(--mono);font-size:11px;color:var(--signal);text-transform:uppercase;letter-spacing:.14em;margin-bottom:14px;}
+    h1{margin:0;font-size:2.2rem;font-weight:600;letter-spacing:-0.02em;}
+    h1 .accent{color:var(--signal);}
+    .subtitle{margin-top:10px;color:var(--soft);font-family:var(--mono);font-size:12px;letter-spacing:.04em;max-width:560px;}
+    .row{display:flex;gap:8px;margin:28px 0 32px;flex-wrap:wrap;}
+    .hero-action{flex:1 1 220px;min-height:48px;display:flex;align-items:center;justify-content:center;gap:10px;border-radius:2px;background:var(--signal);color:#0B0C0E;text-decoration:none;font-family:var(--mono);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.1em;transition:transform 140ms cubic-bezier(0.22,1,0.36,1),background 140ms ease;}
+    .hero-action:hover{transform:translateY(-1px);background:#FF7A30;}
+    .hero-action.secondary{background:transparent;color:var(--text);border:1px solid var(--line);}
+    .hero-action.secondary:hover{border-color:var(--signal);color:var(--signal);background:transparent;}
+    .overview{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1px;background:var(--line);border:1px solid var(--line);}
+    .tile{background:var(--panel);padding:20px;min-height:128px;display:flex;flex-direction:column;gap:10px;position:relative;}
+    .tile-head{display:flex;align-items:center;justify-content:space-between;gap:12px;}
+    .tile-title{font-family:var(--mono);color:var(--muted);font-size:10px;letter-spacing:.16em;text-transform:uppercase;}
+    .tile-dot{width:6px;height:6px;border-radius:50%;background:var(--line);}
+    .tile.ok .tile-dot{background:var(--good);}
+    .tile.warn .tile-dot{background:var(--warn);}
+    .tile.off .tile-dot{background:var(--bad);}
+    .tile-value{font-size:1.15rem;font-weight:500;overflow-wrap:anywhere;letter-spacing:-0.01em;}
+    .tile-detail{color:var(--soft);font-family:var(--mono);font-size:11px;line-height:1.5;}
+    .tile-meta{color:var(--muted);font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;margin-top:auto;}
+    code{background:#0B0C0E;border:1px solid var(--line);border-radius:2px;padding:2px 6px;color:var(--text);font-family:var(--mono);font-size:.85em;}
+    .badge{display:inline-flex;align-items:center;border:1px solid var(--line);border-radius:2px;padding:4px 8px;font-family:var(--mono);font-size:10px;font-weight:500;line-height:1;text-transform:uppercase;letter-spacing:.1em;}
+    .badge.ok{color:var(--good);border-color:rgba(126,231,135,.4);}
+    .badge.warn{color:var(--warn);border-color:rgba(242,181,60,.4);}
+    .badge.off{color:var(--bad);border-color:rgba(255,92,92,.4);}
+    .badge.neutral{color:var(--soft);}
+    .muted{color:var(--muted);}
+    footer{margin-top:32px;padding-top:20px;border-top:1px solid var(--line);color:var(--muted);font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;}
+    footer a{color:var(--soft);text-decoration:none;}
+    footer a:hover{color:var(--signal);}
+    @media (max-width:700px){.overview{grid-template-columns:1fr;}h1{font-size:1.6rem;}}
   </style>
 </head>
 <body>
+  <div class="telemetry">
+    <span class="seg"><span class="dot"></span><span class="k">link</span><span class="v">online</span></span>
+    <span class="seg"><span class="k">model</span><span class="v">${escapeHtml(modelLabel)}</span></span>
+    <span class="seg"><span class="k">provider</span><span class="v">${escapeHtml(providerLabel)}</span></span>
+    <span class="seg"><span class="k">uptime</span><span class="v">${escapeHtml(data.uptime)}</span></span>
+    <span class="seg"><span class="k">port</span><span class="v">${data.ports.public}</span></span>
+    <span class="seg"><span class="k">mode</span><span class="v" style="color:var(--signal)">bypass</span></span>
+  </div>
   <main>
     <header>
-      <h1>HuggingMes + Hermes WebUI</h1>
-      <div class="subtitle">Self-hosted Hermes Agent on HF Spaces</div>
+      <div class="eyebrow">// HERMES.STATUS — REV.04</div>
+      <h1>Hermes<span class="accent">/</span>HuggingMes router</h1>
+      <div class="subtitle">Self-hosted agent gateway on HF Spaces. Token validation disabled — any session string mints a cookie. Telemetry refreshed on load.</div>
     </header>
     <div class="row">
-      <a class="hero-action" href="/" target="_blank" rel="noopener">Open Hermes WebUI -&gt;</a>
-      <a class="hero-action secondary" href="${HM_PREFIX}/app/" target="_blank" rel="noopener">Open Hermes Dashboard</a>
+      <a class="hero-action" href="/" target="_blank" rel="noopener">Launch WebUI →</a>
+      <a class="hero-action secondary" href="${HM_PREFIX}/app/" target="_blank" rel="noopener">Open Dashboard</a>
     </div>
     <section class="overview">
       ${tiles}
     </section>
-    <footer>Built on <a href="https://github.com/somratpro/HuggingMes" style="color:var(--accent)">HuggingMes</a> + <a href="https://github.com/nesquena/hermes-webui" style="color:var(--accent)">Hermes WebUI</a></footer>
+    <footer>
+      <span>Built on <a href="https://github.com/somratpro/HuggingMes">HuggingMes</a> + <a href="https://github.com/nesquena/hermes-webui">hermes-webui</a></span>
+      <span>SESSION ${Math.random().toString(16).slice(2,10).toUpperCase()}</span>
+    </footer>
   </main>
   <script>
     document.querySelectorAll('.local-time').forEach(el => {
