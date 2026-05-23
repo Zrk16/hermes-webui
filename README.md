@@ -24,19 +24,22 @@ All credit goes to the original creators. This repo just wires them together.
 
 ### 1. Duplicate the Space
 
-[![Duplicate this Space](https://huggingface.co/datasets/huggingface/badges/resolve/main/duplicate-this-space-xl.svg)](https://huggingface.co/spaces/f4b404/hermes?duplicate=true)
+[![Duplicate this Space](https://huggingface.co/datasets/huggingface/badges/resolve/main/duplicate-this-space-xl.svg)](https://huggingface.co/spaces/Zrk16/hermes-webui?duplicate=true)
 
-Click the badge above, name your space → pick **CPU Basic (Free)** → and keep it public(else the .hf.space urls won't work).
+Click badge, name Space → pick **CPU Basic (Free)** → keep public (else `.hf.space` URLs break).
 
 ### 2. Add Your Secrets
 
-Go to **Settings → Variables and secrets** in your new Space and add these:
+**Bypass mode active** — no login password needed. Only thing required is an LLM key.
+
+Go to **Settings → Variables and secrets**:
 
 | Secret | What It's For | How to Get It |
 |--------|---------------|---------------|
-| `GATEWAY_TOKEN` | Your password for logging into the chat | Make up any strong password |
-| `HF_TOKEN` | Saves your chats and settings so they don't disappear | [Go here](https://huggingface.co/settings/tokens) → Create new token → Pick write|
-| `CLOUDFLARE_WORKERS_TOKEN` | Keeps your Space awake and lets Telegram work | [Create a token here](https://dash.cloudflare.com/profile/api-tokens) choose **Edit Cloudflare Workers** template |
+| `LLM_API_KEY` | AI provider key (required) | OpenRouter / Anthropic / OpenAI / etc. |
+| `LLM_MODEL` | Which model to call | e.g. `openrouter/anthropic/claude-sonnet-4` |
+| `HF_TOKEN` *(optional)* | Persists chats across restarts | [Tokens page](https://huggingface.co/settings/tokens) → write scope |
+| `CLOUDFLARE_WORKERS_TOKEN` *(optional)* | Keep-alive + Telegram proxy | [Cloudflare tokens](https://dash.cloudflare.com/profile/api-tokens) → **Edit Cloudflare Workers** template |
 
 ### 3. Add an AI Provider
 
@@ -59,7 +62,7 @@ When you see this in the Logs tab, you're ready:
 HuggingMes + Hermes WebUI router listening on 0.0.0.0:7861
 ```
 
-Open your Space URL (`https://your-name.hf.space`) in a **new tab**, enter your `GATEWAY_TOKEN`, and start chatting.
+Open your Space URL (`https://your-name.hf.space`) in a **new tab**, submit any string at the login screen, and start chatting.
 Open Hermes Dashboard from here (`https://f4b404-hermes.hf.space/hm/app`)
 
 
@@ -142,11 +145,11 @@ If you set the API keys as HF Secrets, you can reference them with `${VAR_NAME}`
 
 ## Using the API from Code
 
-Your Space exposes an OpenAI-compatible API at `/v1/*`:
+Your Space exposes an OpenAI-compatible API at `/v1/*`. Bearer is the ephemeral `API_SERVER_KEY` minted by `start.sh` at boot — grab it from the Logs tab (or set `GATEWAY_TOKEN` to pin it).
 
 ```shell
 curl https://<you>-<name>.hf.space/v1/chat/completions \
-  -H "Authorization: Bearer $GATEWAY_TOKEN" \
+  -H "Authorization: Bearer $API_SERVER_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "model": "hermes",
@@ -159,7 +162,7 @@ from openai import OpenAI
 
 client = OpenAI(
     base_url="https://<you>-<name>.hf.space/v1",
-    api_key="<your GATEWAY_TOKEN>",
+    api_key="<your API_SERVER_KEY>",
 )
 resp = client.chat.completions.create(
     model="hermes",
@@ -220,7 +223,7 @@ HF Space port 7861
 git clone https://github.com/F4bC0d3/huggingmes-hermes-webui.git
 cd huggingmes-hermes-webui
 cp .env.example .env
-# edit .env with GATEWAY_TOKEN and provider API keys (e.g., OPENAI_API_KEY, ANTHROPIC_API_KEY)
+# edit .env with LLM_API_KEY + LLM_MODEL (GATEWAY_TOKEN optional; bypass mode is on)
 docker build -t huggingmes-hermes-webui .
 docker run --rm -p 7861:7861 --env-file .env huggingmes-hermes-webui
 # open http://localhost:7861
@@ -232,7 +235,7 @@ docker run --rm -p 7861:7861 --env-file .env huggingmes-hermes-webui
 | --- | --- |
 | Build fails on `nousresearch/hermes-agent:latest` | Set `HERMES_AGENT_VERSION` to a specific tag and restart |
 | Container Running but `/` returns 502 | Hermes WebUI didn't bind. Check Logs tab for `webui.log` output — usually missing/wrong provider API key or LLM config |
-| `/v1/*` returns 401 | Need `Authorization: Bearer <GATEWAY_TOKEN>` header |
+| `/v1/*` returns 401 | Need `Authorization: Bearer <API_SERVER_KEY>` header — grab the ephemeral key from the Logs tab, or set `GATEWAY_TOKEN` to pin it |
 | `/api/status` 404s in logs | Cosmetic — old browser tab polling. Ignored. |
 | Login loops on `/login` | Browser embedded in HF iframe blocks cookies. Open the Space in a new tab. |
 | Dashboard pages blank or 404 on refresh | Should be fixed by the SPA rewriter in health-server.js. Hard-refresh and unregister service worker if cached: DevTools → Application → Service Workers → Unregister |
@@ -247,7 +250,7 @@ docker run --rm -p 7861:7861 --env-file .env huggingmes-hermes-webui
 *   **[@nesquena](https://github.com/nesquena)** for **[Hermes WebUI](https://github.com/nesquena/hermes-webui)** — the chat interface you actually see and use. Three-panel layout, SSE streaming, slash commands, profile management, theme system, mobile responsive design — all theirs.
 *   **[@somratpro](https://github.com/somratpro)** for **[HuggingMes](https://github.com/somratpro/HuggingMes)** — the HF Space packaging, the HF Dataset backup engine (`hermes-sync.py`), the Cloudflare proxy and keepalive setup, the Telegram integration, and the gateway auth wrapper.
 
-This repo's only contribution is the integration layer: a Node.js router that fronts both UIs on a single HF Space port, unified auth where one `GATEWAY_TOKEN` gates everything, and minor tweaks to `start.sh` to launch hermes-webui alongside the existing HuggingMes processes. If you find this useful, star the upstream projects.
+This repo's only contribution is the integration layer: a Node.js router that fronts both UIs on a single HF Space port, a bypass-mode login (any string mints a session) with an ephemeral `API_SERVER_KEY` for `/v1`, and minor tweaks to `start.sh` to launch hermes-webui alongside the existing HuggingMes processes. If you find this useful, star the upstream projects.
 
 ## License
 

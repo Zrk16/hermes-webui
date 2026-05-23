@@ -1,33 +1,42 @@
 # Hermes WebUI — Setup
 
-Personal HuggingFace Spaces gateway. Routes a single public port (7861) to multiple internal services: the Hermes WebUI, the dashboard SPA, the `/v1` OpenAI-compat gateway, and `/hmd` passthrough.
+Personal HuggingFace Spaces gateway. Single public port (7861) fronts the Hermes WebUI, the dashboard SPA, the `/v1` OpenAI-compat gateway, and `/hmd` passthrough.
 
 > **Bypass mode active.** `health-server.js` accepts any submitted token and mints a session cookie. Do not deploy this elsewhere without re-enabling `timingSafeEqualString` in `isAuthorized()` and `handleLogin`.
 
 ---
 
-## 1. Local run
+## 1. One-click HF Space deploy
+
+[![Duplicate this Space](https://huggingface.co/datasets/huggingface/badges/resolve/main/duplicate-this-space-lg.svg)](https://huggingface.co/spaces/Zrk16/hermes-webui?duplicate=true)
+
+Click → pick **CPU Basic (Free)** → keep public. The duplicate flow prompts for the secrets below; you only need the first two.
+
+| Secret | Required? | What it does |
+|---|---|---|
+| `LLM_API_KEY` | yes | provider key (OpenRouter / OpenAI / Anthropic / etc.) |
+| `LLM_MODEL` | yes | e.g. `openrouter/anthropic/claude-sonnet-4` |
+| `HF_TOKEN` | optional | persists chats to a private HF Dataset every 10 min |
+| `CLOUDFLARE_WORKERS_TOKEN` | optional | keep-alive + Telegram proxy |
+
+No `GATEWAY_TOKEN` needed. `start.sh` mints an ephemeral `API_SERVER_KEY` at boot for `/v1` bearer auth.
+
+After secrets save → **Restart Space** → wait 5–8 min for first build. Open the `*.hf.space` URL in a **new tab**, submit any string at the login screen.
+
+---
+
+## 2. Local run
 
 ### Prereqs
 - Node.js 20+
 - Python 3.11+ with `uv` (`pip install uv`)
 - `hermes-webui` binary on PATH (or set `HERMES_WEBUI_BIN`)
 
-### Env vars (`.env`)
+### `.env`
 ```bash
-GATEWAY_TOKEN=anything          # bypassed but still required by start.sh
-GATEWAY_PORT=8000               # internal /v1 gateway
-DASHBOARD_PORT=5173             # Vite dashboard
-WEBUI_PORT=8787                 # hermes-webui
-PUBLIC_PORT=7861                # the only exposed port
-HERMES_WEBUI_PASSWORD=$GATEWAY_TOKEN
-
-# Provider keys (set at least one)
-NVIDIA_API_KEY=...
-OPENROUTER_API_KEY=...
-
-# Routing
-MODEL=nvidia_nim/meta/llama-3.1-70b-instruct
+LLM_API_KEY=sk-...
+LLM_MODEL=openrouter/anthropic/claude-sonnet-4
+# All else optional. start.sh defaults the rest.
 ```
 
 ### Start
@@ -36,23 +45,7 @@ chmod +x start.sh
 ./start.sh
 ```
 
-Open `http://localhost:7861`. Submit any string at the login screen.
-
----
-
-## 2. HuggingFace Space deploy
-
-1. Create a new **Docker** Space.
-2. Push this repo to the Space remote:
-   ```bash
-   git remote add hf https://huggingface.co/spaces/<you>/hermes-webui
-   git push hf main
-   ```
-3. In Space **Settings → Variables and secrets**, set:
-   - `GATEWAY_TOKEN` (any string — bypassed)
-   - `NVIDIA_API_KEY` and/or `OPENROUTER_API_KEY`
-   - `MODEL`, `MODEL_OPUS`, `MODEL_SONNET`, `MODEL_HAIKU` as desired
-4. Space exposes port `7861` (already set in `start.sh`).
+Open `http://localhost:7861`. Submit any string at login.
 
 ---
 
@@ -66,26 +59,25 @@ public :7861  ──►  health-server.js  ──┬─►  :WEBUI_PORT      (he
 ```
 
 - **WebSocket upgrades** routed by path prefix: `/v1` → gateway, `/hmd` & `/hm/app` → dashboard, everything else → WebUI with prefix stripped.
-- **Sessions** signed via HMAC of `GATEWAY_TOKEN` (cookie still issued so downstream services see a consistent session).
+- **Sessions** signed via HMAC of the active token (autogen or `GATEWAY_TOKEN` if set). Cookie still issued so downstream services see a consistent session.
 
 ---
 
 ## 4. Reverting the bypass
 
 In `health-server.js`:
-
 - `isAuthorized(req)` — restore the cookie HMAC check.
-- `handleLogin` — restore the `timingSafeEqualString(submittedToken, GATEWAY_TOKEN)` guard and the "Invalid token" 401 branch.
+- `handleLogin` — restore `timingSafeEqualString(submittedToken, GATEWAY_TOKEN)` and the 401 branch.
 
-Search for `// bypass` comments to find both call sites.
+Search for `// bypass` to find both call sites.
 
 ---
 
-## 5. Commands cheatsheet
+## 5. Cheatsheet
 
 ```bash
-node health-server.js          # router only
-./start.sh                     # full stack
-npm run build                  # dashboard SPA build (if editing /hm/app)
-uv run uvicorn server:app --port 8000   # gateway dev loop
+node health-server.js                    # router only
+./start.sh                               # full stack
+npm run build                            # dashboard SPA build
+uv run uvicorn server:app --port 8000    # gateway dev loop
 ```

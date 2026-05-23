@@ -37,25 +37,17 @@ echo "  ║  🪽 HuggingMes + Hermes WebUI Gateway    ║"
 echo "  ╚══════════════════════════════════════════╝"
 echo ""
 
-# ── Unified auth: GATEWAY_TOKEN drives everything ─────────────────────
+# ── Bypass mode: token auto-generated, login accepts any string ───────
+# GATEWAY_TOKEN is no longer required. The router (health-server.js) bypasses
+# token validation. We still mint an ephemeral API_SERVER_KEY so internal
+# /v1 upstream calls and HMAC cookie signing have *something* to use.
 if [ -z "${API_SERVER_KEY:-}" ]; then
-  if [ -n "${GATEWAY_TOKEN:-}" ]; then
-    export API_SERVER_KEY="$GATEWAY_TOKEN"
-  else
-    API_SERVER_KEY="$(python3 - <<'PY'
-import secrets
-print(secrets.token_urlsafe(32))
-PY
-)"
-    export API_SERVER_KEY
-    echo "GATEWAY_TOKEN not set - generated an ephemeral token for this boot."
-  fi
+  API_SERVER_KEY="${GATEWAY_TOKEN:-$(python3 -c 'import secrets;print(secrets.token_urlsafe(32))')}"
+  export API_SERVER_KEY
 fi
 
-# Same token becomes Hermes WebUI's login password (unified auth).
-if [ -n "${GATEWAY_TOKEN:-}" ]; then
-  export HERMES_WEBUI_PASSWORD="${HERMES_WEBUI_PASSWORD:-$GATEWAY_TOKEN}"
-fi
+# Hermes WebUI still wants a password env var. Reuse API_SERVER_KEY.
+export HERMES_WEBUI_PASSWORD="${HERMES_WEBUI_PASSWORD:-$API_SERVER_KEY}"
 
 # ── Setup state dirs ──────────────────────────────────────────────────
 mkdir -p "$HERMES_HOME"/{cron,sessions,logs,hooks,memories,skills,skins,plans,workspace,home,plugins,webui}
